@@ -35,4 +35,5 @@ if __name__ == "__main__":
     final_records = train_records + val_records
 
     print(len(final_records))
+    print(final_records)
     print(final_records[0]["image_path"].exists())
