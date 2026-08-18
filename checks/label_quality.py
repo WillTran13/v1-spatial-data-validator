@@ -1,6 +1,4 @@
 # return dict: {"metric": n number of bad boxes, "status": True if n bad box is 0}
-from loader import loader
-
 def out_of_bounds(boxes):
     counter = 0
     for box in boxes:
@@ -35,6 +33,11 @@ def invalid_class(boxes, num_classes=80):
 
 
 if __name__ == "__main__":
+    import sys
+
+    sys.path.append("../src")
+
+    from loader import loader
     # test 1, clean
     records = loader("../datasets/coco8/images/train", "../datasets/coco8/labels/train")
     result = out_of_bounds(records[0]["boxes"])

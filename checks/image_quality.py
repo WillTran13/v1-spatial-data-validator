@@ -1,9 +1,9 @@
 # Every check returns a dict: {"metric": metric, "status": True for passed/False for failed}. This dict is applied for all function outputs
 import cv2
-import numpy as np
+from config import THRESHOLDS
 
 
-def blur(gray, threshold=100): # provisional - get the real threshold number in sess3
+def blur(gray, threshold=THRESHOLDS["blur_min"]):
     '''
     Check the image and output metric of blurriness
     Blur metric: variance of the Laplacian. Expects a single channel grayscale array
@@ -21,7 +21,7 @@ def blur(gray, threshold=100): # provisional - get the real threshold number in 
     # return metric
     return {"metric": lap_var, "status": blur_status}
 
-def brightness(gray, min_threshold=5, max_threshold=255): # provisional
+def brightness(gray, min_threshold=THRESHOLDS["brightness_min"], max_threshold=THRESHOLDS["brightness_max"]):
 
     # take the mean
     bright_mean = gray.mean()
@@ -32,7 +32,7 @@ def brightness(gray, min_threshold=5, max_threshold=255): # provisional
     # return metric
     return {"metric": bright_mean, "status": bright_status}
 
-def resolution(img, min_side = 100): # provisional - get the real threshold number in sess3
+def resolution(img, min_side=THRESHOLDS["resolution_min"]):
 
     # get the height and width
     height, width = img.shape[:2]
@@ -41,12 +41,12 @@ def resolution(img, min_side = 100): # provisional - get the real threshold numb
     min_resolution = min(height, width)
 
     # compare with min_side
-    resolution_status = min_resolution > min_side
+    resolution_status = min_resolution >= min_side
 
     # return the value
     return {"metric": min_resolution, "status": resolution_status}
 
-def contrast(gray, min_threshold=5): # provisional
+def contrast(gray, min_threshold=THRESHOLDS["contrast_min"]):
 
     # take the mean
     contrast_std = gray.std()
@@ -69,7 +69,7 @@ if __name__ == "__main__":
     print("resolution ", resolution(img)["metric"])
 
     # blur: blurrer -> lower score
-    blurred = blur(cv2.GaussianBlur(img, (9,9), 0))
+    blurred = blur(cv2.GaussianBlur(gray, (9,9), 0))
     assert blurred["metric"] < blur(gray)["metric"], "blur did not drop"
 
     # brightness: darker -> score lower
