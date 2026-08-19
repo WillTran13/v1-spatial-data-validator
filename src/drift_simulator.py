@@ -1,4 +1,10 @@
+import cv2
 from datetime import datetime, timedelta
+
+import sys
+sys.path.append("../checks")
+from validator_config import SIGMA_MAX, ALPHA_MIN
+from image_quality import blur, brightness
 
 SENSOR_COUNT = 2
 START_TIME = datetime(2026, 1, 1, 0, 0, 0)
@@ -45,6 +51,20 @@ def assign_severity(dimension_rows, target_sensor):
 
     return dimension_rows
 
+def degrade(img, severity):
+    '''
+    input image and the severity, and return a degraded version
+    '''
+    sigma = severity * SIGMA_MAX
+    alpha = 1 - severity * (1 -ALPHA_MIN)
+
+    if sigma > 0:
+        blurred_img = cv2.GaussianBlur(img, (0, 0), sigma)
+    else:
+        blurred_img = img
+    new_img = cv2.convertScaleAbs(blurred_img, alpha=alpha, beta=0)
+    return new_img
+
 if __name__ == "__main__":
     fake = [{"frame_id": f"frame_{i}"} for i in range(8)]
 
@@ -65,3 +85,19 @@ if __name__ == "__main__":
     rows = assign_dimensions(fake_two)
     for row in assign_severity(rows, TARGET_SENSOR):
         print(row)
+
+    # degrade function test
+    test_path = "../datasets/coco8/images/train/000000000009.jpg"
+    img = cv2.imread(test_path)
+    if img is None:
+        raise FileNotFoundError(test_path)
+
+    print("\nDegrade test")
+    for severity in [0.0, 0.33, 0.67, 1.0]:
+        out = degrade(img, severity)
+        gray = cv2.cvtColor(out, cv2.COLOR_BGR2GRAY)
+        print(
+            f"severity {severity:.2f}  "
+            f"blur {blur(gray)['metric']:8.2f}  "
+            f"brightness {brightness(gray)['metric']:6.2f}"
+        )
