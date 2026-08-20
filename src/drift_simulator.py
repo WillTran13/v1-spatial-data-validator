@@ -1,5 +1,8 @@
 import cv2
+from loader import loader
 from datetime import datetime, timedelta
+import shutil
+from pathlib import Path
 
 import sys
 sys.path.append("../checks")
@@ -64,6 +67,66 @@ def degrade(img, severity):
         blurred_img = img
     new_img = cv2.convertScaleAbs(blurred_img, alpha=alpha, beta=0)
     return new_img
+
+class DriftSimulator:
+    '''
+    Degrade a copy of a CLEAN dataset.
+    '''
+    def __init__(
+            self,
+            dir_pairs, # [(img_dir, lbl_dir), ...] ; one pair per split
+            output_dir,
+            sensor_count = SENSOR_COUNT,
+            target_sensor = TARGET_SENSOR,
+            start_time = START_TIME,
+    ):
+        self.dir_pairs = [(Path(i), Path(l)) for i, l in dir_pairs]
+        self.output_dir = Path(output_dir)
+        self.sensor_count = sensor_count
+        self.target_sensor = target_sensor
+        self.start_time = start_time
+    def run(self):
+        '''
+        Degrade every frames. Return the rows' dimensions.
+        '''
+        records = []
+        lbl_dir_by_frame = {}
+        for img_dir, lbl_dir in self.dir_pairs:
+            part = loader(img_dir, lbl_dir)
+            records.extend(part)
+            for r in part:
+                lbl_dir_by_frame[r["frame_id"]] = lbl_dir
+
+        dimension_rows = assign_dimensions(records)
+        dimension_rows = assign_severity(dimension_rows, self.target_sensor)
+
+        path_by_frame = {r["frame_id"]: r["image_path"] for r in records}
+
+        out_img_dir = self.output_dir / "images"
+        out_lbl_dir = self.output_dir / "labels"
+        out_img_dir.mkdir(parents=True, exist_ok=True)
+        out_lbl_dir.mkdir(parents=True, exist_ok=True)
+
+        for row in dimension_rows:
+            frame_id = row["frame_id"]
+
+            img = cv2.imread(str(path_by_frame[frame_id]))
+            if img is None:
+                raise FileNotFoundError(path_by_frame[frame_id])
+
+            degraded = degrade(img, row["drift_severity"])
+
+            out_img_path = out_img_dir / f"{frame_id}.jpg"
+            if not cv2.imwrite(str(out_img_path), degraded):
+                raise IOError(f"imwrite failed: {out_img_path}")
+
+            shutil.copy(
+                lbl_dir_by_frame[frame_id] / f"{frame_id}.txt",
+                out_lbl_dir / f"{frame_id}.txt",
+            )
+
+        return dimension_rows
+
 
 if __name__ == "__main__":
     fake = [{"frame_id": f"frame_{i}"} for i in range(8)]
